@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { queryExecutionClient } from '@dynatrace-sdk/client-query';
+import { useState, useEffect } from "react";
+import { queryExecutionClient } from "@dynatrace-sdk/client-query";
 
 export interface QueryResult {
   records: Record<string, any>[] | null;
@@ -31,7 +31,7 @@ export function useDqlQuery(query: string): QueryResult {
           setRecords(
             (response.result.records as Record<string, any>[] | null) ?? []
           );
-        } else if (response.state === 'RUNNING' && response.requestToken) {
+        } else if (response.state === "RUNNING" && response.requestToken) {
           return pollQuery(response.requestToken);
         }
       })
@@ -42,7 +42,7 @@ export function useDqlQuery(query: string): QueryResult {
         );
       })
       .catch((err) => {
-        if (!cancelled) setError(err.message ?? 'Query failed');
+        if (!cancelled) setError(err.message ?? "Query failed");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -60,10 +60,10 @@ async function pollQuery(requestToken: string, retries = 10) {
   for (let i = 0; i < retries; i++) {
     await new Promise((r) => setTimeout(r, 2000));
     const response = await queryExecutionClient.queryPoll({ requestToken });
-    if (response.state === 'SUCCEEDED') return response;
-    if (response.state === 'FAILED' || response.state === 'CANCELLED') {
+    if (response.state === "SUCCEEDED") return response;
+    if (response.state === "FAILED" || response.state === "CANCELLED") {
       throw new Error(`Query ${response.state.toLowerCase()}`);
     }
   }
-  throw new Error('Query timed out');
+  throw new Error("Query timed out");
 }
