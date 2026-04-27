@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { Flex } from "@dynatrace/strato-components/layouts";
 import { Text } from "@dynatrace/strato-components/typography";
 import type { Grade } from "../utils/scoring";
@@ -22,6 +22,48 @@ interface ScorecardTableProps {
   loading?: boolean;
   error?: string | null;
   description?: string;
+}
+
+type SortKey = "name" | "score" | "grade" | "status" | `metric-${number}`;
+type SortDir = "asc" | "desc";
+
+const statusOrder: Record<HealthStatus, number> = {
+  critical: 0,
+  warning: 1,
+  unknown: 2,
+  healthy: 3,
+};
+
+function parseNumeric(val: string): number {
+  const n = parseFloat(val.replace(/[^0-9.\-]/g, ""));
+  return isNaN(n) ? 0 : n;
+}
+
+function sortRows(rows: ScorecardRow[], key: SortKey, dir: SortDir): ScorecardRow[] {
+  const sorted = [...rows].sort((a, b) => {
+    let cmp = 0;
+    if (key === "name") {
+      cmp = a.name.localeCompare(b.name);
+    } else if (key === "score") {
+      cmp = a.score - b.score;
+    } else if (key === "grade") {
+      cmp = a.grade.localeCompare(b.grade);
+    } else if (key === "status") {
+      cmp = statusOrder[a.status] - statusOrder[b.status];
+    } else if (key.startsWith("metric-")) {
+      const idx = parseInt(key.split("-")[1], 10);
+      const aVal = parseNumeric(a.metrics[idx]?.value ?? "0");
+      const bVal = parseNumeric(b.metrics[idx]?.value ?? "0");
+      cmp = aVal - bVal;
+    }
+    return dir === "asc" ? cmp : -cmp;
+  });
+  return sorted;
+}
+
+function sortIndicator(active: boolean, dir: SortDir): string {
+  if (!active) return " ↕";
+  return dir === "asc" ? " ↑" : " ↓";
 }
 
 function statusBadge(status: HealthStatus) {
@@ -56,6 +98,12 @@ const headerStyle: React.CSSProperties = {
   fontWeight: 600,
 };
 
+const clickableHeader: React.CSSProperties = {
+  ...headerStyle,
+  cursor: "pointer",
+  userSelect: "none",
+};
+
 export const ScorecardTable: React.FC<ScorecardTableProps> = ({
   title,
   nameHeader,
@@ -65,6 +113,20 @@ export const ScorecardTable: React.FC<ScorecardTableProps> = ({
   error,
   description,
 }) => {
+  const [sortKey, setSortKey] = useState<SortKey>("score");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "name" ? "asc" : "desc");
+    }
+  };
+
+  const sortedRows = useMemo(() => sortRows(rows, sortKey, sortDir), [rows, sortKey, sortDir]);
+
   if (loading) {
     return (
       <Flex flexDirection="column" padding={16}>
@@ -104,17 +166,27 @@ export const ScorecardTable: React.FC<ScorecardTableProps> = ({
                 "2px solid var(--dt-colors-border-neutral-default)",
             }}
           >
-            <th style={{ ...headerStyle, textAlign: "left" }}>{nameHeader}</th>
-            <th style={{ ...headerStyle, textAlign: "center" }}>Score</th>
-            <th style={{ ...headerStyle, textAlign: "center" }}>Grade</th>
-            {metricHeaders.map((h) => (
-              <th key={h} style={{ ...headerStyle, textAlign: "right" }}>{h}</th>
+            <th style={{ ...clickableHeader, textAlign: "left" }} onClick={() => handleSort("name")}>
+              {nameHeader}{sortIndicator(sortKey === "name", sortDir)}
+            </th>
+            <th style={{ ...clickableHeader, textAlign: "center" }} onClick={() => handleSort("score")}>
+              Score{sortIndicator(sortKey === "score", sortDir)}
+            </th>
+            <th style={{ ...clickableHeader, textAlign: "center" }} onClick={() => handleSort("grade")}>
+              Grade{sortIndicator(sortKey === "grade", sortDir)}
+            </th>
+            {metricHeaders.map((h, idx) => (
+              <th key={h} style={{ ...clickableHeader, textAlign: "right" }} onClick={() => handleSort(`metric-${idx}`)}>
+                {h}{sortIndicator(sortKey === `metric-${idx}`, sortDir)}
+              </th>
             ))}
-            <th style={{ ...headerStyle, textAlign: "center" }}>Status</th>
+            <th style={{ ...clickableHeader, textAlign: "center" }} onClick={() => handleSort("status")}>
+              Status{sortIndicator(sortKey === "status", sortDir)}
+            </th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
+          {sortedRows.map((row, i) => (
             <tr
               key={row.name + i}
               style={{
