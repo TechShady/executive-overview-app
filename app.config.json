@@ -2,13 +2,17 @@
   "$schema": "./.dt-app/app.config.schema.json",
   "environmentUrl": "https://guu84124.apps.dynatrace.com/",
   "app": {
-    "name": "executive-overview-temp",
-    "version": "0.0.0",
-    "description": "A starting project with routing, fetching data, and charting",
-    "id": "my.executive.overview.temp",
+    "name": "Executive Overview",
+    "version": "0.1.0",
+    "description": "Executive health overview for Web Apps, Infra, Services, DBs",
+    "id": "my.executive.overview",
     "scopes": [
-      { "name": "storage:logs:read", "comment": "default template" },
-      { "name": "storage:buckets:read", "comment": "default template" }
+      { "name": "storage:metrics:read", "comment": "Read metrics from Grail" },
+      { "name": "storage:events:read", "comment": "Read events" },
+      { "name": "storage:spans:read", "comment": "Read distributed traces" },
+      { "name": "storage:entities:read", "comment": "Read entity data" },
+      { "name": "storage:logs:read", "comment": "Read logs" },
+      { "name": "storage:buckets:read", "comment": "Read bucket data" }
     ]
   }
 }
