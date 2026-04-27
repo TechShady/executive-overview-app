@@ -6,6 +6,7 @@ import { ScorecardTable } from "../components/ScorecardTable";
 import { useDqlQuery } from "../hooks/useDqlQuery";
 import type { HealthStatus } from "../components/StatusCard";
 import type { ScorecardRow } from "../components/ScorecardTable";
+import { computeServiceScore, computeGrade } from "../utils/scoring";
 
 function getSvcStatus(errorRate: number, rtMs: number): HealthStatus {
   if (errorRate > 5 || rtMs > 3000) return "critical";
@@ -67,13 +68,22 @@ export const ServicesTab: React.FC = () => {
   const totalReqs = throughput.records?.[0]?.throughput ?? 0;
   const badSvcs = unhealthySvc.records?.[0]?.["count()"] ?? 0;
 
-  const rows: ScorecardRow[] = (scorecard.records ?? []).map((r) => ({
-    name: r["dt.service.name"] ?? "Unknown",
-    status: getSvcStatus(r.error_rate ?? 0, r.avg_rt_ms ?? 0),
-    metric1: `${(r.error_rate ?? 0).toFixed(2)}%`,
-    metric2: `${Math.round(r.avg_rt_ms ?? 0)} ms`,
-    metric3: String(Math.round(r.throughput ?? 0)),
-  }));
+  const rows: ScorecardRow[] = (scorecard.records ?? []).map((r) => {
+    const er = r.error_rate ?? 0;
+    const rt = r.avg_rt_ms ?? 0;
+    const score = computeServiceScore(er, rt);
+    return {
+      name: r["dt.service.name"] ?? "Unknown",
+      score,
+      grade: computeGrade(score),
+      status: getSvcStatus(er, rt),
+      metrics: [
+        { label: "Error Rate", value: `${er.toFixed(2)}%` },
+        { label: "Avg Response", value: `${Math.round(rt)} ms` },
+        { label: "Throughput", value: String(Math.round(r.throughput ?? 0)) },
+      ],
+    };
+  });
 
   return (
     <Flex flexDirection="column" gap={24} style={{ padding: "24px" }}>
@@ -114,10 +124,12 @@ export const ServicesTab: React.FC = () => {
         />
       </Flex>
 
-      <Heading level={3}>Service Scorecard</Heading>
+      <Heading level={3}>Service Health Scorecards</Heading>
       <ScorecardTable
         title="Services"
-        headers={["Service", "Error Rate", "Avg Response", "Throughput"]}
+        nameHeader="Service"
+        metricHeaders={["Error Rate", "Avg Response", "Throughput"]}
+        description="Composite score (0-100): Error Rate (50%) + Response Time (50%)"
         rows={rows}
         loading={scorecard.loading}
         error={scorecard.error}

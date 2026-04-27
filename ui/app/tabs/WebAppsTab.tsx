@@ -6,6 +6,7 @@ import { ScorecardTable } from "../components/ScorecardTable";
 import { useDqlQuery } from "../hooks/useDqlQuery";
 import type { HealthStatus } from "../components/StatusCard";
 import type { ScorecardRow } from "../components/ScorecardTable";
+import { computeWebAppScore, computeGrade } from "../utils/scoring";
 
 function getStatus(errorRate: number, duration: number): HealthStatus {
   if (errorRate > 5 || duration > 5000) return "critical";
@@ -58,13 +59,22 @@ export const WebAppsTab: React.FC = () => {
   const avgLoad = loadTime.records?.[0]?.avg_load ?? 0;
   const activeUsers = users.records?.[0]?.current ?? 0;
 
-  const rows: ScorecardRow[] = (scorecard.records ?? []).map((r) => ({
-    name: r["frontend.name"] ?? "Unknown",
-    status: getStatus(r.error_rate ?? 0, r.avg_duration_ms ?? 0),
-    metric1: `${(r.error_rate ?? 0).toFixed(1)}%`,
-    metric2: `${Math.round(r.avg_duration_ms ?? 0)} ms`,
-    metric3: String(Math.round(r.total_actions ?? 0)),
-  }));
+  const rows: ScorecardRow[] = (scorecard.records ?? []).map((r) => {
+    const er = r.error_rate ?? 0;
+    const dur = r.avg_duration_ms ?? 0;
+    const score = computeWebAppScore(er, dur);
+    return {
+      name: r["frontend.name"] ?? "Unknown",
+      score,
+      grade: computeGrade(score),
+      status: getStatus(er, dur),
+      metrics: [
+        { label: "Error Rate", value: `${er.toFixed(1)}%` },
+        { label: "Avg Duration", value: `${Math.round(dur)} ms` },
+        { label: "Actions", value: String(Math.round(r.total_actions ?? 0)) },
+      ],
+    };
+  });
 
   return (
     <Flex flexDirection="column" gap={24} style={{ padding: "24px" }}>
@@ -104,10 +114,12 @@ export const WebAppsTab: React.FC = () => {
         />
       </Flex>
 
-      <Heading level={3}>Application Scorecard</Heading>
+      <Heading level={3}>Application Health Scorecards</Heading>
       <ScorecardTable
         title="Web Apps"
-        headers={["Application", "Error Rate", "Avg Duration", "Actions"]}
+        nameHeader="Application"
+        metricHeaders={["Error Rate", "Avg Duration", "Actions"]}
+        description="Composite score (0-100): Error Rate (50%) + Duration (50%)"
         rows={rows}
         loading={scorecard.loading}
         error={scorecard.error}

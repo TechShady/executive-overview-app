@@ -1,52 +1,53 @@
 import React from "react";
 import { Flex } from "@dynatrace/strato-components/layouts";
-import { HealthIndicator } from "@dynatrace/strato-components/content";
 import { Text } from "@dynatrace/strato-components/typography";
+import type { Grade } from "../utils/scoring";
+import { gradeColor, scoreBackground } from "../utils/scoring";
 
 export type HealthStatus = "healthy" | "warning" | "critical" | "unknown";
 
 export interface ScorecardRow {
   name: string;
+  score: number;
+  grade: Grade;
   status: HealthStatus;
-  metric1?: string;
-  metric2?: string;
-  metric3?: string;
+  metrics: { label: string; value: string }[];
 }
 
 interface ScorecardTableProps {
   title: string;
-  headers: [string, string, string, string];
+  nameHeader: string;
+  metricHeaders: string[];
   rows: ScorecardRow[];
   loading?: boolean;
   error?: string | null;
+  description?: string;
 }
 
-function mapStatus(
-  status: HealthStatus
-): "ideal" | "good" | "warning" | "critical" | "neutral" {
-  switch (status) {
-    case "healthy":
-      return "ideal";
-    case "warning":
-      return "warning";
-    case "critical":
-      return "critical";
-    default:
-      return "neutral";
-  }
-}
-
-function statusLabel(status: HealthStatus): string {
-  switch (status) {
-    case "healthy":
-      return "Healthy";
-    case "warning":
-      return "Warning";
-    case "critical":
-      return "Critical";
-    default:
-      return "Unknown";
-  }
+function statusBadge(status: HealthStatus) {
+  const map: Record<HealthStatus, { bg: string; label: string }> = {
+    healthy: { bg: "#2bba4e", label: "HEALTHY" },
+    warning: { bg: "#ffb700", label: "WARNING" },
+    critical: { bg: "#dc3545", label: "CRITICAL" },
+    unknown: { bg: "#6c757d", label: "UNKNOWN" },
+  };
+  const s = map[status];
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "2px 10px",
+        borderRadius: "4px",
+        backgroundColor: s.bg,
+        color: "#fff",
+        fontWeight: 700,
+        fontSize: "11px",
+        letterSpacing: "0.5px",
+      }}
+    >
+      {s.label}
+    </span>
+  );
 }
 
 const cellStyle: React.CSSProperties = { padding: "8px 12px" };
@@ -57,10 +58,12 @@ const headerStyle: React.CSSProperties = {
 
 export const ScorecardTable: React.FC<ScorecardTableProps> = ({
   title,
-  headers,
+  nameHeader,
+  metricHeaders,
   rows,
   loading,
   error,
+  description,
 }) => {
   if (loading) {
     return (
@@ -82,6 +85,11 @@ export const ScorecardTable: React.FC<ScorecardTableProps> = ({
 
   return (
     <Flex flexDirection="column" gap={4} style={{ width: "100%" }}>
+      {description && (
+        <Text style={{ fontSize: "12px", color: "var(--dt-colors-text-neutral-subdued)", marginBottom: 4 }}>
+          {description}
+        </Text>
+      )}
       <table
         style={{
           width: "100%",
@@ -96,11 +104,13 @@ export const ScorecardTable: React.FC<ScorecardTableProps> = ({
                 "2px solid var(--dt-colors-border-neutral-default)",
             }}
           >
-            <th style={{ ...headerStyle, textAlign: "left" }}>{headers[0]}</th>
+            <th style={{ ...headerStyle, textAlign: "left" }}>{nameHeader}</th>
+            <th style={{ ...headerStyle, textAlign: "center" }}>Score</th>
+            <th style={{ ...headerStyle, textAlign: "center" }}>Grade</th>
+            {metricHeaders.map((h) => (
+              <th key={h} style={{ ...headerStyle, textAlign: "right" }}>{h}</th>
+            ))}
             <th style={{ ...headerStyle, textAlign: "center" }}>Status</th>
-            <th style={{ ...headerStyle, textAlign: "right" }}>{headers[1]}</th>
-            <th style={{ ...headerStyle, textAlign: "right" }}>{headers[2]}</th>
-            <th style={{ ...headerStyle, textAlign: "right" }}>{headers[3]}</th>
           </tr>
         </thead>
         <tbody>
@@ -113,30 +123,35 @@ export const ScorecardTable: React.FC<ScorecardTableProps> = ({
               }}
             >
               <td style={cellStyle}>{row.name}</td>
+              <td
+                style={{
+                  ...cellStyle,
+                  textAlign: "center",
+                  backgroundColor: scoreBackground(row.score),
+                  fontWeight: 700,
+                }}
+              >
+                {row.score}
+              </td>
+              <td
+                style={{
+                  ...cellStyle,
+                  textAlign: "center",
+                  color: gradeColor(row.grade),
+                  fontWeight: 700,
+                  fontSize: "15px",
+                }}
+              >
+                {row.grade}
+              </td>
+              {row.metrics.map((m, j) => (
+                <td key={j} style={{ ...cellStyle, textAlign: "right" }}>{m.value}</td>
+              ))}
               <td style={{ ...cellStyle, textAlign: "center" }}>
-                <Flex alignItems="center" justifyContent="center" gap={6}>
-                  <HealthIndicator status={mapStatus(row.status)} />
-                  <Text>{statusLabel(row.status)}</Text>
-                </Flex>
-              </td>
-              <td style={{ ...cellStyle, textAlign: "right" }}>
-                {row.metric1 ?? "-"}
-              </td>
-              <td style={{ ...cellStyle, textAlign: "right" }}>
-                {row.metric2 ?? "-"}
-              </td>
-              <td style={{ ...cellStyle, textAlign: "right" }}>
-                {row.metric3 ?? "-"}
+                {statusBadge(row.status)}
               </td>
             </tr>
           ))}
-          {rows.length === 0 && (
-            <tr>
-              <td colSpan={5} style={{ padding: "16px", textAlign: "center" }}>
-                No data available
-              </td>
-            </tr>
-          )}
         </tbody>
       </table>
     </Flex>

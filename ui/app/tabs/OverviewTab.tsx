@@ -4,6 +4,14 @@ import { Heading, Text } from "@dynatrace/strato-components/typography";
 import { StatusCard } from "../components/StatusCard";
 import { useDqlQuery } from "../hooks/useDqlQuery";
 import type { HealthStatus } from "../components/StatusCard";
+import {
+  computeWebAppScore,
+  computeHostScore,
+  computeServiceScore,
+  computeDatabaseScore,
+  computeGrade,
+  gradeColor,
+} from "../utils/scoring";
 
 function getHealthStatus(
   value: number,
@@ -90,15 +98,71 @@ export const OverviewTab: React.FC = () => {
     `timeseries {
   total = sum(dt.service.request.count),
   failures = sum(dt.service.request.failure_count)
-}, by: {dt.service.name}, filter: {dt.entity.service_type == "DATABASE_SERVICE"}
+}, by: {dt.service.name}
+| lookup [fetch dt.entity.service | filter serviceType == "DATABASE_SERVICE" | fields entity.name], sourceField: dt.service.name, lookupField: entity.name
+| filter isNotNull(lookup.entity.name)
 | fieldsAdd error_rate = arraySum(failures) * 100.0 / arraySum(total)
 | summarize total_dbs = count(), unhealthy = countIf(error_rate > 5)
 | fieldsAdd health_pct = ((total_dbs - unhealthy) * 100.0) / total_dbs`
   );
 
   const dbRt = useDqlQuery(
-    `timeseries rt = avg(dt.service.request.response_time), filter: {dt.entity.service_type == "DATABASE_SERVICE"}
-| fieldsAdd avg_rt_ms = arrayAvg(rt) / 1000`
+    `timeseries {
+  total = sum(dt.service.request.count),
+  failures = sum(dt.service.request.failure_count),
+  response_time = avg(dt.service.request.response_time)
+}, by: {dt.service.name}
+| lookup [fetch dt.entity.service | filter serviceType == "DATABASE_SERVICE" | fields entity.name], sourceField: dt.service.name, lookupField: entity.name
+| filter isNotNull(lookup.entity.name)
+| fieldsAdd avg_rt_ms = arrayAvg(response_time) / 1000,
+  error_rate = arraySum(failures) * 100.0 / arraySum(total)
+| summarize avg_rt = avg(avg_rt_ms), avg_error = avg(error_rate)`
+  );
+
+  // Scoring queries: compute average scores across each domain
+  const webScoreData = useDqlQuery(
+    `timeseries {
+  errors = sum(dt.frontend.error.count),
+  actions = sum(dt.frontend.user_action.count),
+  duration = avg(dt.frontend.user_action.duration)
+}, by: {frontend.name}
+| fieldsAdd error_rate = arraySum(errors) * 100.0 / arraySum(actions),
+  avg_duration_ms = arrayAvg(duration)
+| fields error_rate, avg_duration_ms`
+  );
+
+  const infraScoreData = useDqlQuery(
+    `timeseries {
+  cpu = avg(dt.host.cpu.usage),
+  memory = avg(dt.host.memory.usage),
+  disk = avg(dt.host.disk.used.percent)
+}, by: {dt.smartscape.host}
+| fieldsAdd avg_cpu = arrayAvg(cpu), avg_memory = arrayAvg(memory), avg_disk = arrayAvg(disk)
+| fields avg_cpu, avg_memory, avg_disk`
+  );
+
+  const svcScoreData = useDqlQuery(
+    `timeseries {
+  total = sum(dt.service.request.count),
+  failures = sum(dt.service.request.failure_count),
+  response_time = avg(dt.service.request.response_time)
+}, by: {dt.service.name}
+| fieldsAdd error_rate = arraySum(failures) * 100.0 / arraySum(total),
+  avg_rt_ms = arrayAvg(response_time) / 1000
+| fields error_rate, avg_rt_ms`
+  );
+
+  const dbScoreData = useDqlQuery(
+    `timeseries {
+  total = sum(dt.service.request.count),
+  failures = sum(dt.service.request.failure_count),
+  response_time = avg(dt.service.request.response_time)
+}, by: {dt.service.name}
+| lookup [fetch dt.entity.service | filter serviceType == "DATABASE_SERVICE" | fields entity.name], sourceField: dt.service.name, lookupField: entity.name
+| filter isNotNull(lookup.entity.name)
+| fieldsAdd error_rate = arraySum(failures) * 100.0 / arraySum(total),
+  avg_rt_ms = arrayAvg(response_time) / 1000
+| fields error_rate, avg_rt_ms`
   );
 
   const problems = useDqlQuery(
@@ -118,8 +182,38 @@ export const OverviewTab: React.FC = () => {
   const overallErrorRate = svcErrorRate.records?.[0]?.error_rate ?? 0;
   const avgRtMs = svcRt.records?.[0]?.avg_rt_ms ?? 0;
   const dbHealthPct = dbHealth.records?.[0]?.health_pct ?? null;
-  const dbAvgRtMs = dbRt.records?.[0]?.avg_rt_ms ?? 0;
+  const dbAvgRtMs = dbRt.records?.[0]?.avg_rt ?? 0;
+  const dbAvgError = dbRt.records?.[0]?.avg_error ?? 0;
   const problemCount = problems.records?.[0]?.["count()"] ?? 0;
+
+  // Compute average scores per domain
+  const webAvgScore = (() => {
+    const recs = webScoreData.records ?? [];
+    if (recs.length === 0) return null;
+    const total = recs.reduce((sum, r) => sum + computeWebAppScore(r.error_rate ?? 0, r.avg_duration_ms ?? 0), 0);
+    return Math.round(total / recs.length);
+  })();
+
+  const infraAvgScore = (() => {
+    const recs = infraScoreData.records ?? [];
+    if (recs.length === 0) return null;
+    const total = recs.reduce((sum, r) => sum + computeHostScore(r.avg_cpu ?? 0, r.avg_memory ?? 0, r.avg_disk ?? 0), 0);
+    return Math.round(total / recs.length);
+  })();
+
+  const svcAvgScore = (() => {
+    const recs = svcScoreData.records ?? [];
+    if (recs.length === 0) return null;
+    const total = recs.reduce((sum, r) => sum + computeServiceScore(r.error_rate ?? 0, r.avg_rt_ms ?? 0), 0);
+    return Math.round(total / recs.length);
+  })();
+
+  const dbAvgScore = (() => {
+    const recs = dbScoreData.records ?? [];
+    if (recs.length === 0) return null;
+    const total = recs.reduce((sum, r) => sum + computeDatabaseScore(r.error_rate ?? 0, r.avg_rt_ms ?? 0), 0);
+    return Math.round(total / recs.length);
+  })();
 
   const anyLoading =
     webApps.loading ||
@@ -163,6 +257,27 @@ export const OverviewTab: React.FC = () => {
         <Heading level={3}>Web Applications</Heading>
         <Flex gap={16} flexWrap="wrap">
           <StatusCard
+            title="Score"
+            value={
+              webScoreData.loading
+                ? "..."
+                : webAvgScore !== null
+                ? `${webAvgScore} (${computeGrade(webAvgScore)})`
+                : "N/A"
+            }
+            status={
+              webScoreData.loading
+                ? "unknown"
+                : webAvgScore === null
+                ? "unknown"
+                : webAvgScore >= 80
+                ? "healthy"
+                : webAvgScore >= 60
+                ? "warning"
+                : "critical"
+            }
+          />
+          <StatusCard
             title="Health"
             value={
               webApps.loading
@@ -199,6 +314,27 @@ export const OverviewTab: React.FC = () => {
       <Flex flexDirection="column" gap={8}>
         <Heading level={3}>Infrastructure</Heading>
         <Flex gap={16} flexWrap="wrap">
+          <StatusCard
+            title="Score"
+            value={
+              infraScoreData.loading
+                ? "..."
+                : infraAvgScore !== null
+                ? `${infraAvgScore} (${computeGrade(infraAvgScore)})`
+                : "N/A"
+            }
+            status={
+              infraScoreData.loading
+                ? "unknown"
+                : infraAvgScore === null
+                ? "unknown"
+                : infraAvgScore >= 80
+                ? "healthy"
+                : infraAvgScore >= 60
+                ? "warning"
+                : "critical"
+            }
+          />
           <StatusCard
             title="Host Health"
             value={
@@ -238,6 +374,27 @@ export const OverviewTab: React.FC = () => {
       <Flex flexDirection="column" gap={8}>
         <Heading level={3}>Services</Heading>
         <Flex gap={16} flexWrap="wrap">
+          <StatusCard
+            title="Score"
+            value={
+              svcScoreData.loading
+                ? "..."
+                : svcAvgScore !== null
+                ? `${svcAvgScore} (${computeGrade(svcAvgScore)})`
+                : "N/A"
+            }
+            status={
+              svcScoreData.loading
+                ? "unknown"
+                : svcAvgScore === null
+                ? "unknown"
+                : svcAvgScore >= 80
+                ? "healthy"
+                : svcAvgScore >= 60
+                ? "warning"
+                : "critical"
+            }
+          />
           <StatusCard
             title="Service Health"
             value={
@@ -283,6 +440,27 @@ export const OverviewTab: React.FC = () => {
       <Flex flexDirection="column" gap={8}>
         <Heading level={3}>Databases</Heading>
         <Flex gap={16} flexWrap="wrap">
+          <StatusCard
+            title="Score"
+            value={
+              dbScoreData.loading
+                ? "..."
+                : dbAvgScore !== null
+                ? `${dbAvgScore} (${computeGrade(dbAvgScore)})`
+                : "N/A"
+            }
+            status={
+              dbScoreData.loading
+                ? "unknown"
+                : dbAvgScore === null
+                ? "unknown"
+                : dbAvgScore >= 80
+                ? "healthy"
+                : dbAvgScore >= 60
+                ? "warning"
+                : "critical"
+            }
+          />
           <StatusCard
             title="Database Health"
             value={

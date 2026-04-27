@@ -6,6 +6,7 @@ import { ScorecardTable } from "../components/ScorecardTable";
 import { useDqlQuery } from "../hooks/useDqlQuery";
 import type { HealthStatus } from "../components/StatusCard";
 import type { ScorecardRow } from "../components/ScorecardTable";
+import { computeHostScore, computeGrade } from "../utils/scoring";
 
 function getHostStatus(cpu: number, mem: number, disk: number): HealthStatus {
   if (cpu > 90 || mem > 90 || disk > 90) return "critical";
@@ -62,13 +63,23 @@ export const InfraTab: React.FC = () => {
   const totalHosts = hostCount.records?.[0]?.["count()"] ?? 0;
   const critHosts = criticalCount.records?.[0]?.["count()"] ?? 0;
 
-  const rows: ScorecardRow[] = (scorecard.records ?? []).map((r) => ({
-    name: r.host_name ?? "Unknown",
-    status: getHostStatus(r.avg_cpu ?? 0, r.avg_memory ?? 0, r.avg_disk ?? 0),
-    metric1: `${(r.avg_cpu ?? 0).toFixed(1)}%`,
-    metric2: `${(r.avg_memory ?? 0).toFixed(1)}%`,
-    metric3: `${(r.avg_disk ?? 0).toFixed(1)}%`,
-  }));
+  const rows: ScorecardRow[] = (scorecard.records ?? []).map((r) => {
+    const cpu = r.avg_cpu ?? 0;
+    const mem = r.avg_memory ?? 0;
+    const disk = r.avg_disk ?? 0;
+    const score = computeHostScore(cpu, mem, disk);
+    return {
+      name: r.host_name ?? "Unknown",
+      score,
+      grade: computeGrade(score),
+      status: getHostStatus(cpu, mem, disk),
+      metrics: [
+        { label: "CPU %", value: `${cpu.toFixed(1)}%` },
+        { label: "Memory %", value: `${mem.toFixed(1)}%` },
+        { label: "Disk %", value: `${disk.toFixed(1)}%` },
+      ],
+    };
+  });
 
   return (
     <Flex flexDirection="column" gap={24} style={{ padding: "24px" }}>
@@ -106,10 +117,12 @@ export const InfraTab: React.FC = () => {
         />
       </Flex>
 
-      <Heading level={3}>Host Scorecard</Heading>
+      <Heading level={3}>Host Health Scorecards</Heading>
       <ScorecardTable
         title="Infrastructure"
-        headers={["Host", "CPU %", "Memory %", "Disk %"]}
+        nameHeader="Host"
+        metricHeaders={["CPU %", "Memory %", "Disk %"]}
+        description="Composite score (0-100): CPU (40%) + Memory (30%) + Disk (30%)"
         rows={rows}
         loading={scorecard.loading}
         error={scorecard.error}
