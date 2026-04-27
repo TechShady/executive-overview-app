@@ -73,22 +73,22 @@ export function computeDatabaseScore(
 export function gradeColor(grade: Grade): string {
   switch (grade) {
     case "A":
-      return "#2bba4e";
+      return "#00D26A";
     case "B":
       return "#7ec83e";
     case "C":
-      return "#ffb700";
+      return "#FCD53F";
     case "D":
       return "#ff8c00";
     case "F":
-      return "#dc3545";
+      return "#F8312F";
   }
 }
 
 export function scoreBackground(score: number): string {
-  if (score >= 90) return "rgba(43, 186, 78, 0.5)";
+  if (score >= 90) return "rgba(0, 210, 106, 0.5)";
   if (score >= 80) return "rgba(126, 200, 62, 0.4)";
-  if (score >= 70) return "rgba(255, 183, 0, 0.35)";
+  if (score >= 70) return "rgba(252, 213, 63, 0.35)";
   if (score >= 60) return "rgba(255, 140, 0, 0.35)";
-  return "rgba(220, 53, 69, 0.35)";
+  return "rgba(248, 49, 47, 0.35)";
 }

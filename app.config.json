@@ -3,7 +3,7 @@
   "environmentUrl": "https://guu84124.apps.dynatrace.com/",
   "app": {
     "name": "Executive Overview",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "description": "Executive health overview for Web Apps, Infra, Services, DBs",
     "id": "my.executive.overview",
     "scopes": [

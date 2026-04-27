@@ -48,10 +48,11 @@ export const InfraTab: React.FC = () => {
   memory = avg(dt.host.memory.usage),
   disk = avg(dt.host.disk.used.percent)
 }, by: {dt.smartscape.host}
-| fieldsAdd host_name = getNodeName(dt.smartscape.host),
-  avg_cpu = arrayAvg(cpu),
+| fieldsAdd avg_cpu = arrayAvg(cpu),
   avg_memory = arrayAvg(memory),
   avg_disk = arrayAvg(disk)
+| lookup [fetch dt.entity.host | fields id, entity.name], sourceField: dt.smartscape.host, lookupField: id
+| fieldsAdd host_name = lookup.entity.name
 | fields host_name, avg_cpu, avg_memory, avg_disk
 | sort avg_cpu desc
 | limit 50`

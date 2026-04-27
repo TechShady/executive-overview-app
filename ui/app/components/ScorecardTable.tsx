@@ -26,9 +26,9 @@ interface ScorecardTableProps {
 
 function statusBadge(status: HealthStatus) {
   const map: Record<HealthStatus, { bg: string; label: string }> = {
-    healthy: { bg: "#2bba4e", label: "HEALTHY" },
-    warning: { bg: "#ffb700", label: "WARNING" },
-    critical: { bg: "#dc3545", label: "CRITICAL" },
+    healthy: { bg: "#00D26A", label: "HEALTHY" },
+    warning: { bg: "#FCD53F", label: "WARNING" },
+    critical: { bg: "#F8312F", label: "CRITICAL" },
     unknown: { bg: "#6c757d", label: "UNKNOWN" },
   };
   const s = map[status];
@@ -39,7 +39,7 @@ function statusBadge(status: HealthStatus) {
         padding: "2px 10px",
         borderRadius: "4px",
         backgroundColor: s.bg,
-        color: "#fff",
+        color: status === "warning" ? "#000" : "#fff",
         fontWeight: 700,
         fontSize: "11px",
         letterSpacing: "0.5px",

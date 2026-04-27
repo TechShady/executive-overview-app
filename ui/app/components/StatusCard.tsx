@@ -33,11 +33,11 @@ function getCardColors(status: HealthStatus): {
 } {
   switch (status) {
     case "healthy":
-      return { bg: "rgba(43, 186, 78, 0.15)", border: "rgba(43, 186, 78, 0.6)" };
+      return { bg: "rgba(0, 210, 106, 0.18)", border: "#00D26A" };
     case "warning":
-      return { bg: "rgba(255, 183, 0, 0.18)", border: "rgba(255, 183, 0, 0.7)" };
+      return { bg: "rgba(252, 213, 63, 0.20)", border: "#FCD53F" };
     case "critical":
-      return { bg: "rgba(220, 53, 69, 0.18)", border: "rgba(220, 53, 69, 0.7)" };
+      return { bg: "rgba(248, 49, 47, 0.18)", border: "#F8312F" };
     default:
       return {
         bg: "var(--dt-colors-surface-default)",
