@@ -27,12 +27,32 @@ function mapStatus(
   }
 }
 
+function getCardColors(status: HealthStatus): {
+  bg: string;
+  border: string;
+} {
+  switch (status) {
+    case "healthy":
+      return { bg: "rgba(43, 186, 78, 0.15)", border: "rgba(43, 186, 78, 0.6)" };
+    case "warning":
+      return { bg: "rgba(255, 183, 0, 0.18)", border: "rgba(255, 183, 0, 0.7)" };
+    case "critical":
+      return { bg: "rgba(220, 53, 69, 0.18)", border: "rgba(220, 53, 69, 0.7)" };
+    default:
+      return {
+        bg: "var(--dt-colors-surface-default)",
+        border: "var(--dt-colors-border-neutral-default)",
+      };
+  }
+}
+
 export const StatusCard: React.FC<StatusCardProps> = ({
   title,
   value,
   status,
   subtitle,
 }) => {
+  const colors = getCardColors(status);
   return (
     <Flex
       flexDirection="column"
@@ -42,8 +62,8 @@ export const StatusCard: React.FC<StatusCardProps> = ({
       style={{
         padding: "20px",
         borderRadius: "8px",
-        backgroundColor: "var(--dt-colors-surface-default)",
-        border: "1px solid var(--dt-colors-border-neutral-default)",
+        backgroundColor: colors.bg,
+        border: `2px solid ${colors.border}`,
         minWidth: "180px",
         flex: 1,
       }}
