@@ -13,7 +13,7 @@
       { "name": "storage:entities:read", "comment": "Read entity data" },
       { "name": "storage:logs:read", "comment": "Read logs" },
       { "name": "storage:buckets:read", "comment": "Read bucket data" },
-      { "name": "smartscape:smartscape-nodes:read", "comment": "Read smartscape topology" }
+      { "name": "smartscape:smartscape-nodes:read", "comment": "Read smartscape topology" } 
     ]
   }
 }
