@@ -1,0 +1,17 @@
+{
+  "environmentUrl": "https://ENVIRONMENT_ID.apps.dynatrace.com",
+  "app": {
+    "id": "my.executive.overview",
+    "name": "Executive Overview",
+    "description": "High-level health overview for executives with green/yellow/red status indicators across Web Apps, Infrastructure, Services, and Databases.",
+    "version": "0.1.0",
+    "scopes": [
+      { "name": "storage:metrics:read", "comment": "Read metric data" },
+      { "name": "storage:events:read", "comment": "Read event data" },
+      { "name": "storage:spans:read", "comment": "Read span data" },
+      { "name": "storage:entities:read", "comment": "Read entity data" },
+      { "name": "storage:logs:read", "comment": "Read log data" }
+    ]
+  },
+  "icon": "https://dt-cdn.net/images/appicon-default-01-512-ddecfee1f8.png"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "executive-overview",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "dt-app dev",
+    "build": "dt-app build",
+    "deploy": "dt-app deploy"
+  },
+  "dependencies": {
+    "@dynatrace-sdk/client-query": "^1.22.1",
+    "@dynatrace/strato-components": "latest",
+    "@dynatrace/strato-components-preview": "latest",
+    "@dynatrace/strato-icons": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@dynatrace/app-toolkit": "latest",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.3.0"
+  }
+}
