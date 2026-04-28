@@ -20,8 +20,9 @@ export const WebAppsTab: React.FC = () => {
   errors = sum(dt.frontend.error.count),
   actions = sum(dt.frontend.user_action.count)
 }
-| fieldsAdd availability = (1 - (arraySum(errors) / arraySum(actions))) * 100,
-  total_errors = arraySum(errors)`
+| fieldsAdd total_errors = arraySum(errors),
+  total_actions = arraySum(actions)
+| fieldsAdd availability = if(total_actions > 0, else: 100.0, then: if(total_errors >= total_actions, then: 0.0, else: (1.0 - total_errors / total_actions) * 100))`
   );
 
   const lcp = useDqlQuery(
@@ -53,7 +54,7 @@ export const WebAppsTab: React.FC = () => {
 | limit 50`
   );
 
-  const availability = kpis.records?.[0]?.availability ?? 0;
+  const availability = Math.max(0, (kpis.records?.[0]?.availability as number) ?? 0);
   const totalErrors = kpis.records?.[0]?.total_errors ?? 0;
   const avgLcp = lcp.records?.[0]?.avg_lcp ?? 0;
   const avgLoad = loadTime.records?.[0]?.avg_load ?? 0;
