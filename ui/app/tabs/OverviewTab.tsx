@@ -34,7 +34,7 @@ export const OverviewTab: React.FC<{ timeframeDays: number }> = ({ timeframeDays
 
   const webApdex = useDqlQuery(
     `fetch user.events, from:now()-${tf}
-| filter characteristics.has_activity == true
+| filter characteristics.has_navigation == true
 | fieldsAdd dur_ms = toDouble(duration) / 1000000.0
 | summarize satisfied = countIf(dur_ms <= 3000.0),
   tolerating = countIf(dur_ms > 3000.0 and dur_ms <= 12000.0),
