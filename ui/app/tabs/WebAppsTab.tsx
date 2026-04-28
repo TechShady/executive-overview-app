@@ -15,14 +15,18 @@ function getStatus(errorRate: number, duration: number): HealthStatus {
 }
 
 export const WebAppsTab: React.FC = () => {
-  const kpis = useDqlQuery(
-    `timeseries {
-  errors = sum(dt.frontend.error.count),
-  actions = sum(dt.frontend.user_action.count)
-}
-| fieldsAdd total_errors = arraySum(errors),
-  total_actions = arraySum(actions)
-| fieldsAdd availability = if(total_actions > 0, else: 100.0, then: if(total_errors >= total_actions, then: 0.0, else: (1.0 - total_errors / total_actions) * 100))`
+  const errorKpis = useDqlQuery(
+    `timeseries errors = sum(dt.frontend.error.count)
+| fieldsAdd total_errors = arraySum(errors)`
+  );
+
+  const apdex = useDqlQuery(
+    `fetch user.events, from:now()-2h
+| filter event.type == "user_action"
+| summarize satisfied = countIf(user_action.duration <= duration(3, "s")),
+  tolerating = countIf(user_action.duration > duration(3, "s") and user_action.duration <= duration(12, "s")),
+  total = count()
+| fieldsAdd apdex = (toDouble(satisfied) + (toDouble(tolerating) / 2.0)) / toDouble(total)`
   );
 
   const lcp = useDqlQuery(
@@ -54,8 +58,8 @@ export const WebAppsTab: React.FC = () => {
 | limit 50`
   );
 
-  const availability = Math.max(0, (kpis.records?.[0]?.availability as number) ?? 0);
-  const totalErrors = kpis.records?.[0]?.total_errors ?? 0;
+  const totalErrors = errorKpis.records?.[0]?.total_errors ?? 0;
+  const apdexScore = (apdex.records?.[0]?.apdex as number) ?? 0;
   const avgLcp = lcp.records?.[0]?.avg_lcp ?? 0;
   const avgLoad = loadTime.records?.[0]?.avg_load ?? 0;
   const activeUsers = users.records?.[0]?.current ?? 0;
@@ -88,9 +92,10 @@ export const WebAppsTab: React.FC = () => {
 
       <Flex gap={16} flexWrap="wrap">
         <StatusCard
-          title="Availability"
-          value={kpis.loading ? "..." : `${(availability as number).toFixed(1)}%`}
-          status={kpis.loading ? "unknown" : (availability as number) >= 99 ? "healthy" : (availability as number) >= 95 ? "warning" : "critical"}
+          title="Apdex"
+          value={apdex.loading ? "..." : (apdexScore as number).toFixed(2)}
+          status={apdex.loading ? "unknown" : (apdexScore as number) >= 0.85 ? "healthy" : (apdexScore as number) >= 0.7 ? "warning" : "critical"}
+          subtitle="Application Performance Index"
         />
         <StatusCard
           title="LCP"
@@ -110,8 +115,8 @@ export const WebAppsTab: React.FC = () => {
         />
         <StatusCard
           title="Errors"
-          value={kpis.loading ? "..." : Math.round(totalErrors as number)}
-          status={kpis.loading ? "unknown" : (totalErrors as number) === 0 ? "healthy" : (totalErrors as number) < 50 ? "warning" : "critical"}
+          value={errorKpis.loading ? "..." : Math.round(totalErrors as number)}
+          status={errorKpis.loading ? "unknown" : (totalErrors as number) === 0 ? "healthy" : (totalErrors as number) < 50 ? "warning" : "critical"}
         />
       </Flex>
 

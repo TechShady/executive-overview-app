@@ -30,14 +30,13 @@ function getHealthPctStatus(pct: number): HealthStatus {
 }
 
 export const OverviewTab: React.FC = () => {
-  const webApps = useDqlQuery(
-    `timeseries {
-  errors = sum(dt.frontend.error.count),
-  actions = sum(dt.frontend.user_action.count)
-}, by: {frontend.name}
-| fieldsAdd error_rate = arraySum(errors) * 100.0 / arraySum(actions)
-| summarize total_apps = count(), unhealthy = countIf(error_rate > 5)
-| fieldsAdd health_pct = ((total_apps - unhealthy) * 100.0) / total_apps`
+  const webApdex = useDqlQuery(
+    `fetch user.events, from:now()-2h
+| filter event.type == "user_action"
+| summarize satisfied = countIf(user_action.duration <= duration(3, "s")),
+  tolerating = countIf(user_action.duration > duration(3, "s") and user_action.duration <= duration(12, "s")),
+  total = count()
+| fieldsAdd apdex = (toDouble(satisfied) + (toDouble(tolerating) / 2.0)) / toDouble(total)`
   );
 
   const webSessions = useDqlQuery(
@@ -172,7 +171,7 @@ export const OverviewTab: React.FC = () => {
 | summarize count()`
   );
 
-  const webHealthPct = webApps.records?.[0]?.health_pct ?? null;
+  const webApdexScore = (webApdex.records?.[0]?.apdex as number) ?? 0;
   const sessionCount = webSessions.records?.[0]?.latest ?? 0;
   const errorCount = webErrors.records?.[0]?.total ?? 0;
   const infraHealthPct = hostHealth.records?.[0]?.health_pct ?? null;
@@ -216,7 +215,7 @@ export const OverviewTab: React.FC = () => {
   })();
 
   const anyLoading =
-    webApps.loading ||
+    webApdex.loading ||
     hostHealth.loading ||
     svcHealth.loading ||
     dbHealth.loading ||
@@ -278,17 +277,22 @@ export const OverviewTab: React.FC = () => {
             }
           />
           <StatusCard
-            title="Health"
+            title="Apdex"
             value={
-              webApps.loading
+              webApdex.loading
                 ? "..."
-                : `${Math.round(webHealthPct ?? 0)}%`
+                : (webApdexScore as number).toFixed(2)
             }
             status={
-              webApps.loading
+              webApdex.loading
                 ? "unknown"
-                : getHealthPctStatus(webHealthPct ?? 0)
+                : (webApdexScore as number) >= 0.85
+                ? "healthy"
+                : (webApdexScore as number) >= 0.7
+                ? "warning"
+                : "critical"
             }
+            subtitle="Application Performance Index"
           />
           <StatusCard
             title="Active Sessions"
