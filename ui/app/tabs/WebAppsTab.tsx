@@ -24,11 +24,12 @@ export const WebAppsTab: React.FC<{ timeframeDays: number }> = ({ timeframeDays 
 
   const apdex = useDqlQuery(
     `fetch user.events, from:now()-${tf}
-| filter event.type == "user_action"
-| summarize satisfied = countIf(user_action.duration <= duration(3, "s")),
-  tolerating = countIf(user_action.duration > duration(3, "s") and user_action.duration <= duration(12, "s")),
+| filter characteristics.has_activity == true
+| fieldsAdd dur_ms = toDouble(duration) / 1000000.0
+| summarize satisfied = countIf(dur_ms <= 3000.0),
+  tolerating = countIf(dur_ms > 3000.0 and dur_ms <= 12000.0),
   total = count()
-| fieldsAdd apdex = (toDouble(satisfied) + (toDouble(tolerating) / 2.0)) / toDouble(total)`
+| fieldsAdd apdex = if(total > 0, then: (toDouble(satisfied) + (toDouble(tolerating) / 2.0)) / toDouble(total), else: 0.0)`
   );
 
   const lcp = useDqlQuery(
