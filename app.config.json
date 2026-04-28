@@ -3,7 +3,7 @@
   "environmentUrl": "https://jeq40225.apps.dynatrace.com/",
   "app": {
     "name": "Executive Overview",
-    "version": "0.11.0",
+    "version": "0.12.0",
     "description": "Executive health overview for Web Apps, Infra, Services, DBs",
     "id": "my.executive.overview",
     "scopes": [
@@ -13,6 +13,7 @@
       { "name": "storage:entities:read", "comment": "Read entity data" },
       { "name": "storage:logs:read", "comment": "Read logs" },
       { "name": "storage:buckets:read", "comment": "Read bucket data" },
+      { "name": "storage:user-events:read", "comment": "Read RUM user events for Apdex" },
       { "name": "smartscape:smartscape-nodes:read", "comment": "Read smartscape topology" } 
     ]
   }
