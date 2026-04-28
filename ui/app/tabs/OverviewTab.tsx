@@ -29,9 +29,11 @@ function getHealthPctStatus(pct: number): HealthStatus {
   return "critical";
 }
 
-export const OverviewTab: React.FC = () => {
+export const OverviewTab: React.FC<{ timeframeDays: number }> = ({ timeframeDays }) => {
+  const tf = `${timeframeDays}d`;
+
   const webApdex = useDqlQuery(
-    `fetch user.events, from:now()-2h
+    `fetch user.events, from:now()-${tf}
 | filter event.type == "user_action"
 | summarize satisfied = countIf(user_action.duration <= duration(3, "s")),
   tolerating = countIf(user_action.duration > duration(3, "s") and user_action.duration <= duration(12, "s")),
@@ -40,31 +42,31 @@ export const OverviewTab: React.FC = () => {
   );
 
   const webSessions = useDqlQuery(
-    `timeseries sessions = sum(dt.frontend.session.active.estimated_count)
+    `timeseries sessions = sum(dt.frontend.session.active.estimated_count), from:now()-${tf}
 | fieldsAdd latest = arrayLast(sessions)`
   );
 
   const webErrors = useDqlQuery(
-    `timeseries errors = sum(dt.frontend.error.count)
+    `timeseries errors = sum(dt.frontend.error.count), from:now()-${tf}
 | fieldsAdd total = arraySum(errors)`
   );
 
   const hostHealth = useDqlQuery(
-    `timeseries cpu = avg(dt.host.cpu.usage), by: {dt.smartscape.host}
+    `timeseries cpu = avg(dt.host.cpu.usage), by: {dt.smartscape.host}, from:now()-${tf}
 | fieldsAdd avg_cpu = arrayAvg(cpu)
 | summarize total = count(), healthy = countIf(avg_cpu <= 80)
 | fieldsAdd health_pct = (healthy * 100.0) / total`
   );
 
   const hostCpuHigh = useDqlQuery(
-    `timeseries cpu = avg(dt.host.cpu.usage), by: {dt.smartscape.host}
+    `timeseries cpu = avg(dt.host.cpu.usage), by: {dt.smartscape.host}, from:now()-${tf}
 | fieldsAdd avg_cpu = arrayAvg(cpu)
 | filter avg_cpu > 80
 | summarize count()`
   );
 
   const hostMemHigh = useDqlQuery(
-    `timeseries mem = avg(dt.host.memory.usage), by: {dt.smartscape.host}
+    `timeseries mem = avg(dt.host.memory.usage), by: {dt.smartscape.host}, from:now()-${tf}
 | fieldsAdd avg_mem = arrayAvg(mem)
 | filter avg_mem > 85
 | summarize count()`
@@ -74,7 +76,7 @@ export const OverviewTab: React.FC = () => {
     `timeseries {
   total = sum(dt.service.request.count),
   failures = sum(dt.service.request.failure_count)
-}, by: {dt.service.name}
+}, by: {dt.service.name}, from:now()-${tf}
 | fieldsAdd error_rate = arraySum(failures) * 100.0 / arraySum(total)
 | summarize total_svc = count(), unhealthy = countIf(error_rate > 5)
 | fieldsAdd health_pct = ((total_svc - unhealthy) * 100.0) / total_svc`
@@ -84,12 +86,12 @@ export const OverviewTab: React.FC = () => {
     `timeseries {
   total = sum(dt.service.request.count),
   failures = sum(dt.service.request.failure_count)
-}
+}, from:now()-${tf}
 | fieldsAdd error_rate = arraySum(failures) * 100.0 / arraySum(total)`
   );
 
   const svcRt = useDqlQuery(
-    `timeseries rt = avg(dt.service.request.response_time)
+    `timeseries rt = avg(dt.service.request.response_time), from:now()-${tf}
 | fieldsAdd avg_rt_ms = arrayAvg(rt) / 1000`
   );
 
@@ -97,7 +99,7 @@ export const OverviewTab: React.FC = () => {
     `timeseries {
   total = sum(dt.service.request.count),
   failures = sum(dt.service.request.failure_count)
-}, by: {dt.service.name}
+}, by: {dt.service.name}, from:now()-${tf}
 | lookup [fetch dt.entity.service | filter serviceType == "DATABASE_SERVICE" | fields entity.name], sourceField: dt.service.name, lookupField: entity.name
 | filter isNotNull(lookup.entity.name)
 | fieldsAdd error_rate = arraySum(failures) * 100.0 / arraySum(total)
@@ -110,7 +112,7 @@ export const OverviewTab: React.FC = () => {
   total = sum(dt.service.request.count),
   failures = sum(dt.service.request.failure_count),
   response_time = avg(dt.service.request.response_time)
-}, by: {dt.service.name}
+}, by: {dt.service.name}, from:now()-${tf}
 | lookup [fetch dt.entity.service | filter serviceType == "DATABASE_SERVICE" | fields entity.name], sourceField: dt.service.name, lookupField: entity.name
 | filter isNotNull(lookup.entity.name)
 | fieldsAdd avg_rt_ms = arrayAvg(response_time) / 1000,
@@ -124,7 +126,7 @@ export const OverviewTab: React.FC = () => {
   errors = sum(dt.frontend.error.count),
   actions = sum(dt.frontend.user_action.count),
   duration = avg(dt.frontend.user_action.duration)
-}, by: {frontend.name}
+}, by: {frontend.name}, from:now()-${tf}
 | fieldsAdd error_rate = arraySum(errors) * 100.0 / arraySum(actions),
   avg_duration_ms = arrayAvg(duration)
 | fields error_rate, avg_duration_ms`
@@ -135,7 +137,7 @@ export const OverviewTab: React.FC = () => {
   cpu = avg(dt.host.cpu.usage),
   memory = avg(dt.host.memory.usage),
   disk = avg(dt.host.disk.used.percent)
-}, by: {dt.smartscape.host}
+}, by: {dt.smartscape.host}, from:now()-${tf}
 | fieldsAdd avg_cpu = arrayAvg(cpu), avg_memory = arrayAvg(memory), avg_disk = arrayAvg(disk)
 | fields avg_cpu, avg_memory, avg_disk`
   );
@@ -145,7 +147,7 @@ export const OverviewTab: React.FC = () => {
   total = sum(dt.service.request.count),
   failures = sum(dt.service.request.failure_count),
   response_time = avg(dt.service.request.response_time)
-}, by: {dt.service.name}
+}, by: {dt.service.name}, from:now()-${tf}
 | fieldsAdd error_rate = arraySum(failures) * 100.0 / arraySum(total),
   avg_rt_ms = arrayAvg(response_time) / 1000
 | fields error_rate, avg_rt_ms`
@@ -156,7 +158,7 @@ export const OverviewTab: React.FC = () => {
   total = sum(dt.service.request.count),
   failures = sum(dt.service.request.failure_count),
   response_time = avg(dt.service.request.response_time)
-}, by: {dt.service.name}
+}, by: {dt.service.name}, from:now()-${tf}
 | lookup [fetch dt.entity.service | filter serviceType == "DATABASE_SERVICE" | fields entity.name], sourceField: dt.service.name, lookupField: entity.name
 | filter isNotNull(lookup.entity.name)
 | fieldsAdd error_rate = arraySum(failures) * 100.0 / arraySum(total),

@@ -3,7 +3,7 @@
   "environmentUrl": "https://jeq40225.apps.dynatrace.com/",
   "app": {
     "name": "Executive Overview",
-    "version": "0.8.0",
+    "version": "0.9.0",
     "description": "Executive health overview for Web Apps, Infra, Services, DBs",
     "id": "my.executive.overview",
     "scopes": [

@@ -14,14 +14,16 @@ function getStatus(errorRate: number, duration: number): HealthStatus {
   return "healthy";
 }
 
-export const WebAppsTab: React.FC = () => {
+export const WebAppsTab: React.FC<{ timeframeDays: number }> = ({ timeframeDays }) => {
+  const tf = `${timeframeDays}d`;
+
   const errorKpis = useDqlQuery(
-    `timeseries errors = sum(dt.frontend.error.count)
+    `timeseries errors = sum(dt.frontend.error.count), from:now()-${tf}
 | fieldsAdd total_errors = arraySum(errors)`
   );
 
   const apdex = useDqlQuery(
-    `fetch user.events, from:now()-2h
+    `fetch user.events, from:now()-${tf}
 | filter event.type == "user_action"
 | summarize satisfied = countIf(user_action.duration <= duration(3, "s")),
   tolerating = countIf(user_action.duration > duration(3, "s") and user_action.duration <= duration(12, "s")),
@@ -30,17 +32,17 @@ export const WebAppsTab: React.FC = () => {
   );
 
   const lcp = useDqlQuery(
-    `timeseries lcp = avg(dt.frontend.web.page.largest_contentful_paint)
+    `timeseries lcp = avg(dt.frontend.web.page.largest_contentful_paint), from:now()-${tf}
 | fieldsAdd avg_lcp = arrayAvg(lcp)`
   );
 
   const loadTime = useDqlQuery(
-    `timeseries load = avg(dt.frontend.web.navigation.load_event_end)
+    `timeseries load = avg(dt.frontend.web.navigation.load_event_end), from:now()-${tf}
 | fieldsAdd avg_load = arrayAvg(load)`
   );
 
   const users = useDqlQuery(
-    `timeseries users = sum(dt.frontend.user.active.estimated_count)
+    `timeseries users = sum(dt.frontend.user.active.estimated_count), from:now()-${tf}
 | fieldsAdd current = arrayLast(users)`
   );
 
@@ -49,7 +51,7 @@ export const WebAppsTab: React.FC = () => {
   errors = sum(dt.frontend.error.count),
   actions = sum(dt.frontend.user_action.count),
   duration = avg(dt.frontend.user_action.duration)
-}, by: {frontend.name}
+}, by: {frontend.name}, from:now()-${tf}
 | fieldsAdd error_rate = arraySum(errors) * 100.0 / arraySum(actions),
   avg_duration_ms = arrayAvg(duration),
   total_actions = arraySum(actions)

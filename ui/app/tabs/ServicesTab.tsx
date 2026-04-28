@@ -14,9 +14,11 @@ function getSvcStatus(errorRate: number, rtMs: number): HealthStatus {
   return "healthy";
 }
 
-export const ServicesTab: React.FC = () => {
+export const ServicesTab: React.FC<{ timeframeDays: number }> = ({ timeframeDays }) => {
+  const tf = `${timeframeDays}d`;
+
   const totalSvc = useDqlQuery(
-    `timeseries total = sum(dt.service.request.count), by: {dt.service.name}
+    `timeseries total = sum(dt.service.request.count), by: {dt.service.name}, from:now()-${tf}
 | summarize count()`
   );
 
@@ -24,17 +26,17 @@ export const ServicesTab: React.FC = () => {
     `timeseries {
   total = sum(dt.service.request.count),
   failures = sum(dt.service.request.failure_count)
-}
+}, from:now()-${tf}
 | fieldsAdd error_rate = arraySum(failures) * 100.0 / arraySum(total)`
   );
 
   const avgRt = useDqlQuery(
-    `timeseries rt = avg(dt.service.request.response_time)
+    `timeseries rt = avg(dt.service.request.response_time), from:now()-${tf}
 | fieldsAdd avg_rt_ms = arrayAvg(rt) / 1000`
   );
 
   const throughput = useDqlQuery(
-    `timeseries total = sum(dt.service.request.count)
+    `timeseries total = sum(dt.service.request.count), from:now()-${tf}
 | fieldsAdd throughput = arraySum(total)`
   );
 
@@ -42,7 +44,7 @@ export const ServicesTab: React.FC = () => {
     `timeseries {
   total = sum(dt.service.request.count),
   failures = sum(dt.service.request.failure_count)
-}, by: {dt.service.name}
+}, by: {dt.service.name}, from:now()-${tf}
 | fieldsAdd error_rate = arraySum(failures) * 100.0 / arraySum(total)
 | filter error_rate > 2
 | summarize count()`
@@ -53,7 +55,7 @@ export const ServicesTab: React.FC = () => {
   total = sum(dt.service.request.count),
   failures = sum(dt.service.request.failure_count),
   response_time = avg(dt.service.request.response_time)
-}, by: {dt.service.name}
+}, by: {dt.service.name}, from:now()-${tf}
 | fieldsAdd error_rate = arraySum(failures) * 100.0 / arraySum(total),
   avg_rt_ms = arrayAvg(response_time) / 1000,
   throughput = arraySum(total)

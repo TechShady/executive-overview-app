@@ -14,7 +14,9 @@ function getDbStatus(errorRate: number, rtMs: number): HealthStatus {
   return "healthy";
 }
 
-export const DatabasesTab: React.FC = () => {
+export const DatabasesTab: React.FC<{ timeframeDays: number }> = ({ timeframeDays }) => {
+  const tf = `${timeframeDays}d`;
+
   const totalDbs = useDqlQuery(
     `fetch dt.entity.service
 | filter serviceType == "DATABASE_SERVICE"
@@ -26,7 +28,7 @@ export const DatabasesTab: React.FC = () => {
   total = sum(dt.service.request.count),
   failures = sum(dt.service.request.failure_count),
   response_time = avg(dt.service.request.response_time)
-}, by: {dt.service.name}
+}, by: {dt.service.name}, from:now()-${tf}
 | lookup [fetch dt.entity.service | filter serviceType == "DATABASE_SERVICE" | fields entity.name], sourceField: dt.service.name, lookupField: entity.name
 | filter isNotNull(lookup.entity.name)
 | fieldsAdd error_rate = arraySum(failures) * 100.0 / arraySum(total),
@@ -44,7 +46,7 @@ export const DatabasesTab: React.FC = () => {
   total = sum(dt.service.request.count),
   failures = sum(dt.service.request.failure_count),
   response_time = avg(dt.service.request.response_time)
-}, by: {dt.service.name}
+}, by: {dt.service.name}, from:now()-${tf}
 | lookup [fetch dt.entity.service | filter serviceType == "DATABASE_SERVICE" | fields entity.name], sourceField: dt.service.name, lookupField: entity.name
 | filter isNotNull(lookup.entity.name)
 | fieldsAdd error_rate = arraySum(failures) * 100.0 / arraySum(total),

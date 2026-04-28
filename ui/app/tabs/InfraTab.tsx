@@ -14,29 +14,31 @@ function getHostStatus(cpu: number, mem: number, disk: number): HealthStatus {
   return "healthy";
 }
 
-export const InfraTab: React.FC = () => {
+export const InfraTab: React.FC<{ timeframeDays: number }> = ({ timeframeDays }) => {
+  const tf = `${timeframeDays}d`;
+
   const avgCpu = useDqlQuery(
-    `timeseries cpu = avg(dt.host.cpu.usage)
+    `timeseries cpu = avg(dt.host.cpu.usage), from:now()-${tf}
 | fieldsAdd avg_cpu = arrayAvg(cpu)`
   );
 
   const avgMem = useDqlQuery(
-    `timeseries mem = avg(dt.host.memory.usage)
+    `timeseries mem = avg(dt.host.memory.usage), from:now()-${tf}
 | fieldsAdd avg_mem = arrayAvg(mem)`
   );
 
   const avgDisk = useDqlQuery(
-    `timeseries disk = avg(dt.host.disk.used.percent)
+    `timeseries disk = avg(dt.host.disk.used.percent), from:now()-${tf}
 | fieldsAdd avg_disk = arrayAvg(disk)`
   );
 
   const hostCount = useDqlQuery(
-    `timeseries cpu = avg(dt.host.cpu.usage), by: {dt.smartscape.host}
+    `timeseries cpu = avg(dt.host.cpu.usage), by: {dt.smartscape.host}, from:now()-${tf}
 | summarize count()`
   );
 
   const criticalCount = useDqlQuery(
-    `timeseries cpu = avg(dt.host.cpu.usage), by: {dt.smartscape.host}
+    `timeseries cpu = avg(dt.host.cpu.usage), by: {dt.smartscape.host}, from:now()-${tf}
 | fieldsAdd avg_cpu = arrayAvg(cpu)
 | filter avg_cpu > 90
 | summarize count()`
@@ -47,7 +49,7 @@ export const InfraTab: React.FC = () => {
   cpu = avg(dt.host.cpu.usage),
   memory = avg(dt.host.memory.usage),
   disk = avg(dt.host.disk.used.percent)
-}, by: {dt.smartscape.host}
+}, by: {dt.smartscape.host}, from:now()-${tf}
 | fieldsAdd avg_cpu = arrayAvg(cpu),
   avg_memory = arrayAvg(memory),
   avg_disk = arrayAvg(disk)
